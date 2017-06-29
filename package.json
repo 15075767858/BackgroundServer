@@ -1,0 +1,16 @@
+{
+  "name": "smartiobackgroundserver",
+  "version": "1.0.0",
+  "description": "smartio nodejs background server",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "mysql": "github:mysqljs/mysql",
+    "redis": "^2.7.1"
+  }
+}
