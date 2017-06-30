@@ -1,4 +1,22 @@
-var mysql =require("mysql")
+var mysql =require("mysql");
+function getMysqlConnection(option) {
+    var connection = mysql.createConnection(option || {
+        host: '127.0.0.1',
+        user: 'root',
+        password: 'root',
+        database: 'test'
+    });
+    return connection;
+}
+function getMysqlPoll(option) {
+    var pool = mysql.createPool({
+        //connectionLimit: 100,
+        host: '127.0.0.1',
+        user: 'root',
+        password: 'root',
+        database: 'test'
+    });
+}
 function initMysqlData(redisClient, connection, callback) {
     getRedisKeys(redisClient, function (err, keys) {
         var ip = redisClient.connection_options.host + "";
@@ -213,6 +231,8 @@ function saveSubscribeMessage(pool, ip, port, msArr, callback) {
         }
     })
 }
+exports.getMysqlConnection=getMysqlConnection;
+exports.getMysqlPoll=getMysqlPoll;
 exports.initMysqlData=initMysqlData;
 exports.clearKeysDevices=clearKeysDevices;
 exports.getRedisKeys=getRedisKeys;
