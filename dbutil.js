@@ -1,4 +1,4 @@
-var mysql =require("mysql");
+var mysql = require("mysql");
 function getMysqlConnection(option) {
     var connection = mysql.createConnection(option || {
         host: '127.0.0.1',
@@ -16,6 +16,7 @@ function getMysqlPoll(option) {
         password: 'root',
         database: 'test'
     });
+    return pool;
 }
 function initMysqlData(redisClient, connection, callback) {
     getRedisKeys(redisClient, function (err, keys) {
@@ -32,46 +33,71 @@ function initMysqlData(redisClient, connection, callback) {
     })
 }
 function clearKeysDevices(connection, callback) {
-    connection.query("delete from smartio_device;", function (err, results, fields) {
+    connection.query("delete from smartio_key;", function (err, results, fields) {
         if (err) {
             throw err;
         }
-        connection.query("delete from smartio_key;", function (err, results, fields) {
-            if (err) {
-                throw err;
-            }
-            callback(err, results, fields);
-        });
+        callback(err, results, fields);
     });
+    // connection.query("delete from smartio_device;", function (err, results, fields) {
+    //     if (err) {
+    //         throw err;
+    //     }
+
+    // });
 }
 function getRedisKeys(redisClient, callback) {
     redisClient.keys("[0-9][0-9][0-9][0-9][0-9][0-9][0-9]", function (err, replies) {
         callback(err, replies);
     })
 }
+
+
+
 function generateMysqlDevices(connection, ip, port, devices, callback) {
     connection.beginTransaction(function (err) {
         let count = 0;
         for (let i = 0; i < devices.length; i++) {
-            connection.query(`insert INTO smartio_device(ip,port,device) values("${ip}",${port},${devices[i]});`, function (err) {
+            connection.query("select * from smartio_device where ip = ? and port = ? and device = ?", [ip, port, devices[i]], function (err, results) {
                 if (err) {
-                    return connection.rollback(function () {
-                        throw err;
-                    })
-                }
-                count++;
-                if (count == devices.length) {
-                    connection.commit(function (err) {
-                        if (err) {
-                            return connection.rollback(function () {
-                                throw err;
+                    console.log(err)
+                } else {
+                    count++;
+                    if (results[0] == undefined) {
+                        connection.query(`insert INTO smartio_device(ip,port,device) values("${ip}",${port},${devices[i]});`, function (err) {
+                            if (err) {
+                                return connection.rollback(function () {
+                                    throw err;
+                                })
+                            }
+                            if (count == devices.length) {
+                                connection.commit(function (err) {
+                                    if (err) {
+                                        return connection.rollback(function () {
+                                            throw err;
+                                        });
+                                    }
+                                    callback(err)
+                                });
+                            }
+                        })
+                    } else {
+                        if (count == devices.length) {
+                            connection.commit(function (err) {
+                                if (err) {
+                                    return connection.rollback(function () {
+                                        throw err;
+                                    });
+                                }
+                                callback(err)
                             });
                         }
-                        callback(err)
-                    });
+                    }
 
                 }
-            })
+            }
+            )
+
         }
     })
 }
@@ -144,7 +170,6 @@ function generateMysqlKeys(connection, redisClient, keys, callback) {
                             });
                         }
                         count++;
-                        console.log(count, keys.length)
                         if (count == keys.length) {
                             connection.commit(function (err) {
                                 if (err) {
@@ -200,6 +225,7 @@ JSON.apply = function (object, config) {
     }
     return object;
 };
+
 // pool.query("select COLUMN_NAME from  information_schema.COLUMNS where table_name = 'smartio_key';",
 //     function (error, results, fields) {
 //         var typesArr = getTypesByColumn(results);
@@ -231,13 +257,13 @@ function saveSubscribeMessage(pool, ip, port, msArr, callback) {
         }
     })
 }
-exports.getMysqlConnection=getMysqlConnection;
-exports.getMysqlPoll=getMysqlPoll;
-exports.initMysqlData=initMysqlData;
-exports.clearKeysDevices=clearKeysDevices;
-exports.getRedisKeys=getRedisKeys;
-exports.generateMysqlDevices=generateMysqlDevices;
-exports.generateMysqlKeys=generateMysqlKeys;
-exports.getTypesByColumn=getTypesByColumn;
-exports.getDeviceByKeys=getDeviceByKeys;
-exports.saveSubscribeMessage=saveSubscribeMessage;
+exports.getMysqlConnection = getMysqlConnection;
+exports.getMysqlPoll = getMysqlPoll;
+exports.initMysqlData = initMysqlData;
+exports.clearKeysDevices = clearKeysDevices;
+exports.getRedisKeys = getRedisKeys;
+exports.generateMysqlDevices = generateMysqlDevices;
+exports.generateMysqlKeys = generateMysqlKeys;
+exports.getTypesByColumn = getTypesByColumn;
+exports.getDeviceByKeys = getDeviceByKeys;
+exports.saveSubscribeMessage = saveSubscribeMessage;
