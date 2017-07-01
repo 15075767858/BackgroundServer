@@ -16,7 +16,6 @@ function getListenIps(){
             port:$(items[i]).find("port").text()
         })
     }
-    console.log(arr)
     return arr;
 }
  getListenIps()
@@ -49,12 +48,9 @@ function initMysqlData(redisClient, connection, callback) {
     getRedisKeys(redisClient, function (err, keys) {
         var ip = redisClient.connection_options.host + "";
         var port = redisClient.connection_options.port;
-        console.log(ip,port)
         var devices = getDeviceByKeys(keys);
         generateMysqlDevices(connection, ip, port, devices, function (err) {
-            console.log("device end");
             generateMysqlKeys(connection, redisClient, keys, function (err) {
-                console.log("end");
                 callback(err);
             })
         })
@@ -86,7 +82,6 @@ function generateMysqlDevices(connection, ip, port, devices, callback) {
     connection.beginTransaction(function (err) {
         let count = 0;
         for (let i = 0; i < devices.length; i++) {
-            console.log(ip)
             connection.query("select * from smartio_device where ip = ? and port = ? and device = ?", [ip, port, devices[i]], function (err, results) {
                 if (err) {
                     console.log(err)
@@ -207,7 +202,6 @@ function generateMysqlKeys(connection, redisClient, keys, callback) {
                                     });
                                 }
                                 callback(err);
-                                console.log('success!');
                             });
                         }
                     }
