@@ -1,27 +1,55 @@
 var mysql = require("mysql");
+var fs = require("fs");
+var cheerio = require("cheerio");
+var connection = getMysqlConnection();
+var pool = getMysqlPoll();
+
+function getListenIps(){
+    var data = fs.readFileSync("/mnt/nandflash/listenip.xml")
+    var xmlstr = data.toString();
+    $ = cheerio.load(xmlstr);
+    var items = $("item")
+    var arr = [];
+    for(var i=0;i<items.length;i++){
+        arr.push({
+            host:$(items[i]).find("ip").text(),
+            port:$(items[i]).find("port").text()
+        })
+    }
+    console.log(arr)
+    return arr;
+}
+ getListenIps()
+function getMysqlXmlConfig() {
+    var data = fs.readFileSync("/mnt/nandflash/mysqlconfig.xml")
+    var xmlstr = data.toString();
+    $ = cheerio.load(xmlstr);
+    var host = $("host").text()
+    var username = $("username").text()
+    var password = $("password").text()
+    var databasename = $("databasename").text()
+    return {
+        host: host,
+        user: username,
+        password: password,
+        database: databasename
+    }
+}
 function getMysqlConnection(option) {
-    var connection = mysql.createConnection(option || {
-        host: '127.0.0.1',
-        user: 'root',
-        password: 'root',
-        database: 'test'
-    });
+
+    var connection = mysql.createConnection(option || getMysqlXmlConfig());
     return connection;
 }
+
 function getMysqlPoll(option) {
-    var pool = mysql.createPool({
-        //connectionLimit: 100,
-        host: '127.0.0.1',
-        user: 'root',
-        password: 'root',
-        database: 'test'
-    });
+    var pool = mysql.createPool(getMysqlXmlConfig());
     return pool;
 }
 function initMysqlData(redisClient, connection, callback) {
     getRedisKeys(redisClient, function (err, keys) {
         var ip = redisClient.connection_options.host + "";
         var port = redisClient.connection_options.port;
+        console.log(ip,port)
         var devices = getDeviceByKeys(keys);
         generateMysqlDevices(connection, ip, port, devices, function (err) {
             console.log("device end");
@@ -58,6 +86,7 @@ function generateMysqlDevices(connection, ip, port, devices, callback) {
     connection.beginTransaction(function (err) {
         let count = 0;
         for (let i = 0; i < devices.length; i++) {
+            console.log(ip)
             connection.query("select * from smartio_device where ip = ? and port = ? and device = ?", [ip, port, devices[i]], function (err, results) {
                 if (err) {
                     console.log(err)
@@ -257,6 +286,23 @@ function saveSubscribeMessage(pool, ip, port, msArr, callback) {
         }
     })
 }
+function startRedisLinsten(redis, option) {
+    var redisClient = redis.createClient(option);
+    var redisClientSub = redis.createClient(option);
+    initMysqlData(redisClient, connection, function (err) {
+        redisClientSub.psubscribe("*");
+        redisClientSub.on("pmessage", function (pattern, channel, message) {
+            var host = this.connection_options.host + "";
+            var port = this.connection_options.port;
+            var msArr = message.split("\r\n");
+            //console.log(ip,port,message)
+            if (msArr[1] == "Present_Value") {
+                saveSubscribeMessage(pool, host, port, msArr, function () {
+                })
+            }
+        })
+    })
+}
 exports.getMysqlConnection = getMysqlConnection;
 exports.getMysqlPoll = getMysqlPoll;
 exports.initMysqlData = initMysqlData;
@@ -267,3 +313,5 @@ exports.generateMysqlKeys = generateMysqlKeys;
 exports.getTypesByColumn = getTypesByColumn;
 exports.getDeviceByKeys = getDeviceByKeys;
 exports.saveSubscribeMessage = saveSubscribeMessage;
+exports.startRedisLinsten = startRedisLinsten;
+exports.getListenIps=getListenIps;

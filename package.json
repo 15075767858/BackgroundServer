@@ -10,7 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "bluebird": "^3.5.0",
+    "cheerio": "^1.0.0-rc.1",
     "express": "^4.15.3",
+    "gulp": "^3.9.1",
     "mysql": "github:mysqljs/mysql",
     "redis": "^2.7.1"
   }
