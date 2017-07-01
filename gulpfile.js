@@ -1,6 +1,6 @@
 const path = require('path');
 var dest = __dirname;
-var sources = "/Volumes/XiaoMi-usb0/共享/".path.basename(__dirname);
+var sources = "/Volumes/XiaoMi-usb0/共享/"+path.basename(__dirname);
 var gulp = require('gulp'),
     fileSync = require('gulp-file-sync');
 gulp.task('file', function () {
