@@ -11,10 +11,13 @@
   "dependencies": {
     "bluebird": "^3.5.0",
     "cheerio": "^1.0.0-rc.1",
+    "exceljs": "^0.4.13",
     "express": "^4.15.3",
     "gulp": "^3.9.1",
     "gulp-file-sync": "^1.0.7",
     "mysql": "github:mysqljs/mysql",
+    "node-schedule": "^1.2.3",
+    "node-xlsx": "^0.7.4",
     "redis": "^2.7.1"
   }
 }
