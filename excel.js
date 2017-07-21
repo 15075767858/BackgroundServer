@@ -2,6 +2,10 @@ var Excel = require('exceljs');
 var dbutil = require("./dbutil")
 var schedule = require('node-schedule');
 var fs = require("fs");
+var eventPath = "/mnt/nandflash/event"
+if (fs.existsSync(eventPath) == false) {
+    fs.mkdir(eventPath)
+}
 schedule.scheduleJob('0 0 0 1-31 * *', function () {
     console.log(new Date().toLocaleString());
     saveOneDayEventExcel();
@@ -13,7 +17,7 @@ schedule.scheduleJob('0 0 0 1 1-12 *', function () {
 
 function saveEventExcel(startTime, endTime) {
     dbutil.queryEventMessageByDate(startTime, endTime, function (err, results, fields) {
-        console.log(results)
+        //console.log(results)
         generateExcel(startTime.toDateString() + " - " + endTime.toDateString() + ".xlsx", results);
         //process.exit()
     });
@@ -101,11 +105,8 @@ function generateExcel(filename, data) {
         data[i].last_update_time = new Date(data[i].last_update_time).toLocaleString()
         worksheet.addRow(data[i]);
     }
-    var eventPath = "/mnt/nandflash/event"
-    if (fs.existsSync(eventPath) == false) {
-        fs.mkdir(eventPath)
-    }
-        workbook.xlsx.writeFile(eventPath + "/" + filename)
+
+    workbook.xlsx.writeFile(eventPath + "/" + filename)
 }
 
 exports.saveOneDayEventExcel = saveOneDayEventExcel;

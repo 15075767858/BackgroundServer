@@ -6,6 +6,7 @@ var fs = require("fs");
 var express = require('express');
 var app = express();
 var pidName = "/mnt/nandflash/ndpid.text";
+require("./excel")
 killLastPid()
 savePid()
 
