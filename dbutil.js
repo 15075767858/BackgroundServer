@@ -4,6 +4,14 @@ var cheerio = require("cheerio");
 var connection = getMysqlConnection();
 var pool = getMysqlPoll();
 var filterpoint = {};
+
+function errlog(err) {
+    if (err) {
+        console.log(err)
+        fs.appendFileSync("/mnt/nandflash/wwwerror.log", new Date().toLocaleString() + " " + err.message + "\r\n")
+    }
+}
+
 function getListenIps() {
     var data = fs.readFileSync("/mnt/nandflash/listenip.xml")
     var xmlstr = data.toString();
@@ -19,6 +27,7 @@ function getListenIps() {
     return arr;
 }
 getListenIps()
+
 function getFilterPoint() {
     var data = fs.readFileSync("/mnt/nandflash/filterpoint.xml")
     var xmlstr = data.toString();
@@ -35,6 +44,7 @@ function getFilterPoint() {
     console.log(filterpoint)
 }
 getFilterPoint()
+
 function getMysqlXmlConfig() {
     var data = fs.readFileSync("/mnt/nandflash/mysqlconfig.xml")
     var xmlstr = data.toString();
@@ -51,6 +61,7 @@ function getMysqlXmlConfig() {
         multipleStatements: true
     }
 }
+
 function getMysqlConnection(option) {
 
     var connection = mysql.createConnection(option || getMysqlXmlConfig());
@@ -61,6 +72,7 @@ function getMysqlPoll(option) {
     var pool = mysql.createPool(getMysqlXmlConfig());
     return pool;
 }
+
 function initMysqlData(redisClient, connection, callback) {
     getRedisKeys(redisClient, function (err, keys) {
         var ip = redisClient.connection_options.host + "";
@@ -73,6 +85,7 @@ function initMysqlData(redisClient, connection, callback) {
         })
     })
 }
+
 function clearKeysDevices(connection, callback) {
     connection.query("delete from smartio_key;", function (err, results, fields) {
         if (err) {
@@ -87,6 +100,7 @@ function clearKeysDevices(connection, callback) {
 
     // });
 }
+
 function getRedisKeys(redisClient, callback) {
     redisClient.keys("[0-9][0-9][0-9][0-9][0-9][0-9][0-9]", function (err, replies) {
         callback(err, replies);
@@ -136,12 +150,12 @@ function generateMysqlDevices(connection, ip, port, devices, callback) {
                     }
 
                 }
-            }
-            )
+            })
 
         }
     })
 }
+
 function generateMysqlKeys(connection, redisClient, keys, callback) {
     var ip = redisClient.connection_options.host + "";
     var port = redisClient.connection_options.port;
@@ -223,11 +237,11 @@ function generateMysqlKeys(connection, redisClient, keys, callback) {
                         }
                     }
                 );
-            }
-            )
+            })
         }
     })
 }
+
 function getTypesByColumn(columns) {
     var typesArr = [];
     for (var i = 0; i < columns.length; i++) {
@@ -238,15 +252,16 @@ function getTypesByColumn(columns) {
     }
     return typesArr;
 }
+
 function getDeviceByKeys(keys) {
     var deviceArr = []
     for (var i = 0; i < keys.length; i++) {
         var device = keys[i].substr(0, 4);
         if (!deviceArr.find(function (val, index) {
-            if (device == val) {
-                return true;
-            }
-        })) {
+                if (device == val) {
+                    return true;
+                }
+            })) {
             deviceArr.push(device)
         }
     }
@@ -279,7 +294,7 @@ function saveEventMessage(option, callback) {
     if (filterpoint[host]) {
         if (filterpoint[host][key]) {
             callback()
-            return ;
+            return;
         }
     }
     var device_instance = key.substr(0, 4);
@@ -295,8 +310,7 @@ function saveEventMessage(option, callback) {
             Object_Name = results[0].Object_Name;
             Description = results[0].Description;
         }
-        pool.query("insert INTO smartio_event SET  ? ",
-            {
+        pool.query("insert INTO smartio_event SET  ? ", {
                 Object_Name: Object_Name,
                 Description: Description,
                 message_number: option.channel.split(".")[2],
@@ -314,24 +328,24 @@ function saveEventMessage(option, callback) {
     })
     //, `Object_Name` = (select Object_Name from smartio_key where device=" + mysql.escape(deviceId) + " and `key`=" + mysql.escape(key) + ") "
 }
+
 function queryEventMessageByDate(startTime, endTime, callback) {
-    pool.query("select * from smartio_event where last_update_time>? and last_update_time <?",[startTime,endTime],function(err,results,fields){
-        callback(err,results,fields)
+    pool.query("select * from smartio_event where last_update_time>? and last_update_time <?", [startTime, endTime], function (err, results, fields) {
+        callback(err, results, fields)
     })
 }
 
-
-
 function saveSubscribeMessage(deviceId, msArr, callback) {
-    if (!msArr[0]) { return }
+    if (!msArr[0]) {
+        return
+    }
     var key = msArr[0];
     var device_instance = key.substr(0, 4);
     var device_type = key.substr(4, 1);
     var device_number = key.substr(5, 2);
     var Present_Value = msArr[2];
     var last_update_time = new Date();
-    pool.query("insert INTO smartio_data_record SET  ? , `Object_Name` = (select Object_Name from smartio_key where device=" + mysql.escape(deviceId) + " and `key`=" + mysql.escape(key) + ") ",
-        {
+    pool.query("insert INTO smartio_data_record SET  ? , `Object_Name` = (select Object_Name from smartio_key where device=" + mysql.escape(deviceId) + " and `key`=" + mysql.escape(key) + ") ", {
             device: deviceId,
             device_instance: device_instance,
             device_type: device_type,
@@ -343,9 +357,8 @@ function saveSubscribeMessage(deviceId, msArr, callback) {
             callback(err);
         }
     );
-
-
 }
+
 function startRedisLinsten(redis, option) {
     var redisClient = redis.createClient(option);
     var redisClientSub = redis.createClient(option);
@@ -360,14 +373,19 @@ function startRedisLinsten(redis, option) {
                 getDeviceId(host, port, message.substr(0, 4), function (err, deviceId) {
                     //console.log(deviceId)
 
-                    saveEventMessage({ deviceId, channel, message, host }, function () {
-                    })
-                    saveSubscribeMessage(deviceId, msArr, function () { })
+                    saveEventMessage({
+                        deviceId,
+                        channel,
+                        message,
+                        host
+                    }, function () {})
+                    saveSubscribeMessage(deviceId, msArr, function () {})
                 });
             }
         })
     })
 }
+
 function getDeviceId(host, port, device_instance, callback) {
     pool.query("select id from smartio_device where ip=" + mysql.escape(host) + " and port=" + mysql.escape(port) + " and device =" + mysql.escape(device_instance) + " limit 1", function (error, results, fields) {
         if (results[0]) {
@@ -377,7 +395,59 @@ function getDeviceId(host, port, device_instance, callback) {
     })
 }
 
-exports.queryEventMessageByDate=queryEventMessageByDate;
+// function insertHistoryIndex(historys, callback) {
+
+//     var query = "insert INTO smartio_history_index set ? ;"
+
+//     var queryStr = "";
+//     for (let i = 0; i < historys.length; i++) {
+//         queryStr += mysql.format(query, historys[i]);
+//     }
+//     console.log(queryStr)
+//     pool.query(queryStr, function (err, results, fields) {
+//         callback(err, results, fields);
+//     })
+// }
+
+function insertHistoryIndex(history, callback) {
+    var sql = pool.query("select id from smartio_history_index where tablename=?", history.tablename, function (err, results) {
+        errlog(err);
+        if (results[0]) {
+            pool.query("update smartio_history_index set ? where id=" + results[0].id, history, function (err, results) {
+                errlog(err);
+                callback(results)
+            })
+        } else {
+            pool.query("insert INTO smartio_history_index set ?", history, function (err, results) {
+                errlog(err);
+                callback(results)
+            })
+        }
+        console.log('results', results, sql.sql)
+    })
+
+}
+
+function getHistoryIndexAll(callback) {
+    pool.query("select * from smartio_history_index", function (err, results, fields) {
+        errlog(err)
+        callback(err, results, fields);
+    })
+}
+
+
+function insertHistory(data, callback) {
+    var sql = "insert INTO smartio_history set ?";
+    sql = mysql.format(sql, data);
+    pool.query(sql, function (err, results, fields) {
+        errlog(err)
+        callback(err, results, fields);
+    })
+}
+exports.insertHistory = insertHistory;
+exports.getHistoryIndexAll = getHistoryIndexAll;
+exports.insertHistoryIndex = insertHistoryIndex;
+exports.queryEventMessageByDate = queryEventMessageByDate;
 exports.getMysqlConnection = getMysqlConnection;
 exports.getMysqlPoll = getMysqlPoll;
 exports.initMysqlData = initMysqlData;

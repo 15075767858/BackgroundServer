@@ -10,6 +10,7 @@ schedule.scheduleJob('0 0 0 1-31 * *', function () {
     console.log(new Date().toLocaleString());
     saveOneDayEventExcel();
 });
+
 schedule.scheduleJob('0 0 0 1 1-12 *', function () {
     console.log(new Date().toLocaleString());
     saveOneMonthEventExcel();

@@ -4,6 +4,7 @@ var connection = dbutil.getMysqlConnection();
 var pool = dbutil.getMysqlPoll();
 var fs = require("fs");
 var express = require('express');
+var History = require("./History");
 var app = express();
 var pidName = "/mnt/nandflash/ndpid.text";
 require("./excel")
@@ -13,6 +14,7 @@ savePid()
 function savePid() {
     var d = fs.writeFileSync(pidName, process.pid)
 }
+
 function killLastPid() {
     try {
         if (fs.existsSync(pidName)) {
@@ -36,4 +38,5 @@ var server = app.listen(1888, function (err) {
             dbutil.startRedisLinsten(redis, arr[i])
         }
     })
+    History.run();
 })
