@@ -13,52 +13,67 @@ function errlog(err) {
 }
 
 function getListenIps() {
-    var data = fs.readFileSync("/mnt/nandflash/listenip.xml")
-    var xmlstr = data.toString();
-    $ = cheerio.load(xmlstr);
-    var items = $("item")
-    var arr = [];
-    for (var i = 0; i < items.length; i++) {
-        arr.push({
-            host: $(items[i]).find("ip").text(),
-            port: $(items[i]).find("port").text()
-        })
+    try {
+        var data = fs.readFileSync("/mnt/nandflash/listenip.xml")
+        var xmlstr = data.toString();
+        $ = cheerio.load(xmlstr);
+        var items = $("item")
+        var arr = [];
+        for (var i = 0; i < items.length; i++) {
+            arr.push({
+                host: $(items[i]).find("ip").text(),
+                port: $(items[i]).find("port").text()
+            })
+        }
+        return arr;
+    } catch (err) {
+        errlog(err)
     }
-    return arr;
 }
 getListenIps()
 
 function getFilterPoint() {
-    var data = fs.readFileSync("/mnt/nandflash/filterpoint.xml")
-    var xmlstr = data.toString();
-    $ = cheerio.load(xmlstr);
-    var items = $("item");
-    for (var i = 0; i < items.length; i++) {
-        var ip = $(items[i]).find("ip").text()
-        var key = $(items[i]).find("key").text()
-        if (!filterpoint[ip]) {
-            filterpoint[ip] = {}
+    try {
+        if (!fs.exists("/mnt/nandflash/filterpoint.xml")) {
+            return;
         }
-        filterpoint[ip][key] = true;
+        var data = fs.readFileSync("/mnt/nandflash/filterpoint.xml")
+        var xmlstr = data.toString();
+        $ = cheerio.load(xmlstr);
+        var items = $("item");
+        for (var i = 0; i < items.length; i++) {
+            var ip = $(items[i]).find("ip").text()
+            var key = $(items[i]).find("key").text()
+            if (!filterpoint[ip]) {
+                filterpoint[ip] = {}
+            }
+            filterpoint[ip][key] = true;
+        }
+        console.log(filterpoint)
+    } catch (err) {
+        errlog(err)
     }
-    console.log(filterpoint)
 }
-getFilterPoint()
+//getFilterPoint()
 
 function getMysqlXmlConfig() {
-    var data = fs.readFileSync("/mnt/nandflash/mysqlconfig.xml")
-    var xmlstr = data.toString();
-    $ = cheerio.load(xmlstr);
-    var host = $("host").text()
-    var username = $("username").text()
-    var password = $("password").text()
-    var databasename = $("databasename").text()
-    return {
-        host: host,
-        user: username,
-        password: password,
-        database: databasename,
-        multipleStatements: true
+    try {
+        var data = fs.readFileSync("/mnt/nandflash/mysqlconfig.xml")
+        var xmlstr = data.toString();
+        $ = cheerio.load(xmlstr);
+        var host = $("host").text()
+        var username = $("username").text()
+        var password = $("password").text()
+        var databasename = $("databasename").text()
+        return {
+            host: host,
+            user: username,
+            password: password,
+            database: databasename,
+            multipleStatements: true
+        }
+    } catch (err) {
+        errlog(err)
     }
 }
 
@@ -362,6 +377,12 @@ function saveSubscribeMessage(deviceId, msArr, callback) {
 function startRedisLinsten(redis, option) {
     var redisClient = redis.createClient(option);
     var redisClientSub = redis.createClient(option);
+    redisClient.on("err", function (err) {
+        errlog(err)
+    })
+    redisClientSub.on("err", function (err) {
+        errlog(err)
+    })
     initMysqlData(redisClient, connection, function (err) {
         redisClientSub.psubscribe("*");
         redisClientSub.on("pmessage", function (pattern, channel, message) {

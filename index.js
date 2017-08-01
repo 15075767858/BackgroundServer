@@ -11,6 +11,16 @@ require("./excel")
 killLastPid()
 savePid()
 
+function rebootServer() {
+    exec("reboot.bat")
+    setTimeout(function () {
+        process.kill(process.pid)
+    }, 1000)
+}
+app.get("reboot", function () {
+    rebootServer()
+})
+
 function savePid() {
     var d = fs.writeFileSync(pidName, process.pid)
 }
@@ -23,11 +33,11 @@ function killLastPid() {
                 process.kill(pid)
             }
         }
-    }
-    catch (e) {
+    } catch (e) {
 
     }
 }
+
 var server = app.listen(1888, function (err) {
     if (err) {
         throw err;

@@ -6,47 +6,59 @@ var dbutil = require("./dbutil")
 var HistoryArr = [];
 var clientArr = [];
 
+function errlog(err) {
+    if (err) {
+        console.log(err)
+        fs.appendFileSync("/mnt/nandflash/wwwerror.log", new Date().toLocaleString() + " " + err.message + "\r\n")
+    }
+}
+
 function run() {
     getHistoryXml()
     setInterval(function () {
         queryRedisByKeys()
     }, 10000)
 }
-exports.run=run;
+exports.run = run;
+
 function getHistoryXml() {
     HistoryArr = [];
-    var data = fs.readFileSync("/mnt/nandflash/HistoryTable.xml")
-    var xmlstr = data.toString();
-    $ = cheerio.load(xmlstr);
-    var items = $("item");
-    for (var i = 0; i < items.length; i++) {
-        var ip = $(items[i]).find("ip").text().replace(/[\n\t]/gm, "")
-        var port = $(items[i]).find("port").text().replace(/[\n\t]/gm, "")
-        var tablename = $(items[i]).find("tablename").text().replace(/[\n\t]/gm, "")
-        var keys = $(items[i]).find("keys").text().replace(/[\n\t]/gm, "")
-        var keysArr = keys.split(",").sort().slice(0, 7)
+    try {
+        var data = fs.readFileSync("/mnt/nandflash/HistoryTable.xml")
+        var xmlstr = data.toString();
+        $ = cheerio.load(xmlstr);
+        var items = $("item");
+        for (var i = 0; i < items.length; i++) {
+            var ip = $(items[i]).find("ip").text().replace(/[\n\t]/gm, "")
+            var port = $(items[i]).find("port").text().replace(/[\n\t]/gm, "")
+            var tablename = $(items[i]).find("tablename").text().replace(/[\n\t]/gm, "")
+            var keys = $(items[i]).find("keys").text().replace(/[\n\t]/gm, "")
+            var keysArr = keys.split(",").sort().slice(0, 7)
 
-        var data = {
-            ip,
-            port,
-            tablename,
-            keys: keys,
-            key1: keysArr[0] || "",
-            key2: keysArr[1] || "",
-            key3: keysArr[2] || "",
-            key4: keysArr[3] || "",
-            key5: keysArr[4] || "",
-            key6: keysArr[5] || "",
-            key7: keysArr[6] || "",
-            key8: keysArr[7] || "",
+            var data = {
+                ip,
+                port,
+                tablename,
+                keys: keys,
+                key1: keysArr[0] || "",
+                key2: keysArr[1] || "",
+                key3: keysArr[2] || "",
+                key4: keysArr[3] || "",
+                key5: keysArr[4] || "",
+                key6: keysArr[5] || "",
+                key7: keysArr[6] || "",
+                key8: keysArr[7] || "",
+            }
+            HistoryArr.push(data)
+            dbutil.insertHistoryIndex(data, function (err, results) {
+                setInterval(function () {
+                    queryRedisByKeys()
+
+                }, 10000)
+            })
         }
-        HistoryArr.push(data)
-        dbutil.insertHistoryIndex(data, function (err, results) {
-            setInterval(function () {
-                queryRedisByKeys()
-
-            }, 10000)
-        })
+    } catch (err) {
+        errlog(err)
     }
 
 }
@@ -58,6 +70,9 @@ function queryRedisByKeys() {
             let client = redis.createClient({
                 host: results[i].ip,
                 port: results[i].port
+            })
+            client.on("error", function (err) {
+                errlog(err);
             })
             client.multi()
                 .hget(results[i].key1, "Present_Value")
@@ -72,14 +87,14 @@ function queryRedisByKeys() {
                     //console.log(results[i])
                     var data = {
                         tablename: results[i].id,
-                        key1_value: replies[0],
-                        key2_value: replies[1],
-                        key3_value: replies[2],
-                        key4_value: replies[3],
-                        key5_value: replies[4],
-                        key6_value: replies[5],
-                        key7_value: replies[6],
-                        key8_value: replies[7],
+                        key1_value: replies[0] || "",
+                        key2_value: replies[1] || "",
+                        key3_value: replies[2] || "",
+                        key4_value: replies[3] || "",
+                        key5_value: replies[4] || "",
+                        key6_value: replies[5] || "",
+                        key7_value: replies[6] || "",
+                        key8_value: replies[7] || "",
                         last_update_time: new Date()
                     }
                     client.quit()
