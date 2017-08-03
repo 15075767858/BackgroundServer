@@ -377,10 +377,10 @@ function saveSubscribeMessage(deviceId, msArr, callback) {
 function startRedisLinsten(redis, option) {
     var redisClient = redis.createClient(option);
     var redisClientSub = redis.createClient(option);
-    redisClient.on("err", function (err) {
+    redisClient.on("error", function (err) {
         errlog(err)
     })
-    redisClientSub.on("err", function (err) {
+    redisClientSub.on("error", function (err) {
         errlog(err)
     })
     initMysqlData(redisClient, connection, function (err) {

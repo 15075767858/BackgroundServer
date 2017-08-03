@@ -6,18 +6,20 @@ var fs = require("fs");
 var express = require('express');
 var History = require("./History");
 var app = express();
+var child_process=require("child_process");
 var pidName = "/mnt/nandflash/ndpid.text";
 require("./excel")
 killLastPid()
 savePid()
 
 function rebootServer() {
-    exec("reboot.bat")
-    setTimeout(function () {
-        process.kill(process.pid)
-    }, 1000)
+    child_process.exec("n.exe reboot.js")
+
+    // setTimeout(function () {
+    //     process.kill(process.pid)
+    // }, 1000)
 }
-app.get("reboot", function () {
+app.get("/reboot", function () {
     rebootServer()
 })
 
