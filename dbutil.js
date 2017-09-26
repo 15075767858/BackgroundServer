@@ -367,7 +367,14 @@ function saveEventMessageToDB(key, deviceId, Present_Value, message_number, call
 
 function queryEventMessageByDate(startTime, endTime, callback) {
     console.log("start query message")
-    pool.query("select * from smartio_event where last_update_time>? and last_update_time <?", [startTime, endTime], function (err, results, fields) {
+    pool.query("select * from smartio_event where last_update_time>? and last_update_time <? ", [startTime, endTime], function (err, results, fields) {
+        console.log("end query message")
+        callback(err, results, fields)
+    })
+}
+function queryEventMessageByDatePage(startTime, endTime,page, callback) {
+    console.log("start query message")
+    pool.query("select * from smartio_event where last_update_time>? and last_update_time <?  limit ?,?", [startTime, endTime,100000*page,100000], function (err, results, fields) {
         console.log("end query message")
         callback(err, results, fields)
     })
@@ -521,6 +528,7 @@ exports.insertHistory = insertHistory;
 exports.getHistoryIndexAll = getHistoryIndexAll;
 exports.insertHistoryIndex = insertHistoryIndex;
 exports.queryEventMessageByDate = queryEventMessageByDate;
+exports.queryEventMessageByDatePage=queryEventMessageByDatePage;
 exports.getMysqlConnection = getMysqlConnection;
 exports.getMysqlPoll = getMysqlPoll;
 exports.initMysqlData = initMysqlData;

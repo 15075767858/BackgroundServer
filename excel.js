@@ -19,10 +19,18 @@ schedule.scheduleJob('0 0 0 1 1-12 *', function () {
 function saveEventExcel(startTime, endTime) {
     console.log("start save excel")
     dbutil.queryEventMessageByDate(startTime, endTime, function (err, results, fields) {
-        //console.log(results)
-
         generateExcel(startTime.toDateString() + " - " + endTime.toDateString() + ".xlsx", results);
-        //process.exit()
+    });
+}
+
+function saveEventExcelByPage(startTime, endTime, page) {
+    dbutil.queryEventMessageByDatePage(startTime, endTime, page, function (err, results, fields) {
+        generateExcel(page + " " + startTime.toDateString() + " - " + endTime.toDateString() + ".xlsx", results, function () {
+            if (results.length == 100000) {
+                page++;
+                saveEventExcelByPage(startTime, endTime, page);
+            }
+        });
     });
 }
 
@@ -37,25 +45,26 @@ function saveOneMinEventExcel() {
 function saveOneDayEventExcel() {
     var endTime = new Date();
     var startTime = new Date(endTime.getTime() - 86400000);
-    saveEventExcel(startTime, endTime);
+    saveEventExcelByPage(startTime, endTime,0);
+    //saveEventExcel(startTime, endTime);
 }
 
 function saveOneMonthEventExcel() {
     var endTime = new Date();
     var startTime = new Date();
     startTime = new Date(startTime.setMonth(startTime.getMonth() - 1));
-
-    saveEventExcel(startTime, endTime);
+    saveEventExcelByPage(startTime, endTime,0);
+    //saveEventExcel(startTime, endTime);
 }
 
 function saveAllExcel() {
     var startTime = new Date("Mon Sep 25 1980 14:26:22 GMT+0800 (CST)");
     var endTime = new Date();
-
-    saveEventExcel(startTime, endTime);
+    saveEventExcelByPage(startTime, endTime,0);
+    //saveEventExcel(startTime, endTime);
 }
 
-function generateExcel(filename, data) {
+function generateExcel(filename, data, callback) {
     console.log("start generate excel")
     var workbook = new Excel.Workbook();
 
@@ -116,8 +125,12 @@ function generateExcel(filename, data) {
         data[i].last_update_time = new Date(data[i].last_update_time).toLocaleString()
         worksheet.addRow(data[i]);
     }
-    
     workbook.xlsx.writeFile(eventPath + "/" + filename)
+    worksheet.destroy()
+    
+    if (callback) {
+        callback()
+    }
     console.log("write end")
 }
 
