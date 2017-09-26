@@ -17,8 +17,10 @@ schedule.scheduleJob('0 0 0 1 1-12 *', function () {
 });
 
 function saveEventExcel(startTime, endTime) {
+    console.log("start save excel")
     dbutil.queryEventMessageByDate(startTime, endTime, function (err, results, fields) {
         //console.log(results)
+
         generateExcel(startTime.toDateString() + " - " + endTime.toDateString() + ".xlsx", results);
         //process.exit()
     });
@@ -46,9 +48,16 @@ function saveOneMonthEventExcel() {
     saveEventExcel(startTime, endTime);
 }
 
-function generateExcel(filename, data) {
-    var workbook = new Excel.Workbook();
+function saveAllExcel() {
+    var startTime = new Date("Mon Sep 25 1980 14:26:22 GMT+0800 (CST)");
+    var endTime = new Date();
 
+    saveEventExcel(startTime, endTime);
+}
+
+function generateExcel(filename, data) {
+    console.log("start generate excel")
+    var workbook = new Excel.Workbook();
 
     var worksheet = workbook.addWorksheet(filename, {
         properties: {
@@ -103,12 +112,15 @@ function generateExcel(filename, data) {
         }
     ];
     for (var i = 0; i < data.length; i++) {
+        console.log(i)
         data[i].last_update_time = new Date(data[i].last_update_time).toLocaleString()
         worksheet.addRow(data[i]);
     }
-
+    
     workbook.xlsx.writeFile(eventPath + "/" + filename)
+    console.log("write end")
 }
 
 exports.saveOneDayEventExcel = saveOneDayEventExcel;
 exports.saveOneMonthEventExcel = saveOneMonthEventExcel;
+exports.saveAllExcel = saveAllExcel;

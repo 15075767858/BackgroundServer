@@ -20,9 +20,26 @@ function getListenIps() {
         var items = $("item")
         var arr = [];
         for (var i = 0; i < items.length; i++) {
+            var keys = $(items[i]).find("key");
+            var subscribeKeys = []; //订阅的key
+            var loopKeys = []; //延时循环访问
+            for (var j = 0; j < keys.length; j++) {
+                if (keys[j].attribs["loop_time"] == 0) {
+                    subscribeKeys.push(keys[j].attribs['number']);
+                } else {
+                    loopKeys.push({
+                        "loop_time": keys[j].attribs["loop_time"],
+                        "key": keys[j].attribs["number"],
+                        "history": keys[j].attribs['history'],
+                        "event": keys[j].attribs['event']
+                    });
+                }
+            }
             arr.push({
                 host: $(items[i]).find("ip").text(),
-                port: $(items[i]).find("port").text()
+                port: $(items[i]).find("port").text(),
+                subscribeKeys: subscribeKeys,
+                loopKeys: loopKeys
             })
         }
         return arr;
@@ -44,6 +61,7 @@ function getFilterPoint() {
         for (var i = 0; i < items.length; i++) {
             var ip = $(items[i]).find("ip").text()
             var key = $(items[i]).find("key").text()
+
             if (!filterpoint[ip]) {
                 filterpoint[ip] = {}
             }
@@ -78,7 +96,6 @@ function getMysqlXmlConfig() {
 }
 
 function getMysqlConnection(option) {
-
     var connection = mysql.createConnection(option || getMysqlXmlConfig());
     return connection;
 }
@@ -312,11 +329,16 @@ function saveEventMessage(option, callback) {
             return;
         }
     }
+    var deviceId = option.deviceId;
+    var Present_Value = msArr[2];
+    var message_number = option.channel.split(".")[2];
+    saveEventMessageToDB(key, deviceId, Present_Value, message_number, callback)
+}
+
+function saveEventMessageToDB(key, deviceId, Present_Value, message_number, callback) {
     var device_instance = key.substr(0, 4);
     var device_type = key.substr(4, 1);
     var device_number = key.substr(5, 2);
-    var deviceId = option.deviceId;
-    var Present_Value = msArr[2];
     var last_update_time = new Date();
 
     var sql = pool.query("select * from smartio_key where  `key` = " + key + " and `device`=" + deviceId + " limit 1", function (err, results, fields) {
@@ -328,7 +350,7 @@ function saveEventMessage(option, callback) {
         pool.query("insert INTO smartio_event SET  ? ", {
                 Object_Name: Object_Name,
                 Description: Description,
-                message_number: option.channel.split(".")[2],
+                message_number: message_number,
                 device: deviceId,
                 device_instance: device_instance,
                 device_type: device_type,
@@ -341,11 +363,12 @@ function saveEventMessage(option, callback) {
             }
         );
     })
-    //, `Object_Name` = (select Object_Name from smartio_key where device=" + mysql.escape(deviceId) + " and `key`=" + mysql.escape(key) + ") "
 }
 
 function queryEventMessageByDate(startTime, endTime, callback) {
+    console.log("start query message")
     pool.query("select * from smartio_event where last_update_time>? and last_update_time <?", [startTime, endTime], function (err, results, fields) {
+        console.log("end query message")
         callback(err, results, fields)
     })
 }
@@ -355,10 +378,14 @@ function saveSubscribeMessage(deviceId, msArr, callback) {
         return
     }
     var key = msArr[0];
+    var Present_Value = msArr[2];
+    saveSubscribeMessageToDB(deviceId, key, Present_Value, callback);
+}
+
+function saveSubscribeMessageToDB(deviceId, key, Present_Value, callback) {
     var device_instance = key.substr(0, 4);
     var device_type = key.substr(4, 1);
     var device_number = key.substr(5, 2);
-    var Present_Value = msArr[2];
     var last_update_time = new Date();
     pool.query("insert INTO smartio_data_record SET  ? , `Object_Name` = (select Object_Name from smartio_key where device=" + mysql.escape(deviceId) + " and `key`=" + mysql.escape(key) + ") ", {
             device: deviceId,
@@ -383,17 +410,42 @@ function startRedisLinsten(redis, option) {
     redisClientSub.on("error", function (err) {
         errlog(err)
     })
+
     initMysqlData(redisClient, connection, function (err) {
+        var loopKeys = option.loopKeys;
+        for (let i = 0; i < loopKeys.length; i++) {
+            let loopTime = loopKeys[i].loop_time;
+            let key = loopKeys[i].key;
+            let history = loopKeys[i].history;
+            let event = loopKeys[i].event;
+            setInterval(function () {
+                redisClient.hget(key, "Present_Value", function (err, Present_Value) {
+                    var host = redisClient.connection_options.host;
+                    var port = redisClient.connection_options.port;
+                    getDeviceId(host, port, key.substr(0, 4), function (err, deviceId) {
+                        if (event) {
+                            saveEventMessageToDB(key, deviceId, Present_Value, 0, function () {})
+                        }
+                        if (history) {
+                            saveSubscribeMessageToDB(deviceId, key, Present_Value, function () {})
+                        }
+                    });
+                })
+            }, loopTime)
+        }
+        
         redisClientSub.psubscribe("*");
         redisClientSub.on("pmessage", function (pattern, channel, message) {
             console.log(message);
             var host = this.connection_options.host + "";
             var port = this.connection_options.port;
             var msArr = message.split("\r\n");
+            if (option.subscribeKeys.indexOf(msArr[0]) < 0) {
+                return;
+            }
             if (msArr[1] == "Present_Value") {
                 getDeviceId(host, port, message.substr(0, 4), function (err, deviceId) {
                     //console.log(deviceId)
-
                     saveEventMessage({
                         deviceId,
                         channel,

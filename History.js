@@ -19,6 +19,7 @@ function run() {
         queryRedisByKeys()
     }, 10000)
 }
+
 exports.run = run;
 
 function getHistoryXml() {
