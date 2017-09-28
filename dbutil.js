@@ -104,6 +104,17 @@ function getMysqlPoll(option) {
     var pool = mysql.createPool(getMysqlXmlConfig());
     return pool;
 }
+setInterval(function () {
+    var new_pool = getMysqlPoll();
+    var old_pool = pool;
+    pool = new_pool;
+    old_pool.end();
+
+    var new_connection = getMysqlConnection();
+    var old_connection = connection;
+    connection = new_connection;
+    old_connection.end();
+}, 1800000)
 
 function initMysqlData(redisClient, connection, callback) {
     getRedisKeys(redisClient, function (err, keys) {
@@ -343,6 +354,17 @@ function saveEventMessageToDB(key, deviceId, Present_Value, message_number, call
 
     var sql = pool.query("select * from smartio_key where  `key` = " + key + " and `device`=" + deviceId + " limit 1", function (err, results, fields) {
         var Object_Name, Description;
+        if (err) {
+            errlog(err)
+            return
+        }
+        if (!results) {
+            errlog({
+                message: "saveEventMessageToDB results undefine"
+            })
+            console.log("results undefine")
+            return;
+        }
         if (results[0]) {
             Object_Name = results[0].Object_Name;
             Description = results[0].Description;
@@ -372,9 +394,10 @@ function queryEventMessageByDate(startTime, endTime, callback) {
         callback(err, results, fields)
     })
 }
-function queryEventMessageByDatePage(startTime, endTime,page, callback) {
+
+function queryEventMessageByDatePage(startTime, endTime, page, callback) {
     console.log("start query message")
-    pool.query("select * from smartio_event where last_update_time>? and last_update_time <?  limit ?,?", [startTime, endTime,100000*page,100000], function (err, results, fields) {
+    pool.query("select * from smartio_event where last_update_time>? and last_update_time <?  limit ?,?", [startTime, endTime, 100000 * page, 100000], function (err, results, fields) {
         console.log("end query message")
         callback(err, results, fields)
     })
@@ -440,7 +463,7 @@ function startRedisLinsten(redis, option) {
                 })
             }, loopTime)
         }
-        
+
         redisClientSub.psubscribe("*");
         redisClientSub.on("pmessage", function (pattern, channel, message) {
             console.log(message);
@@ -468,6 +491,11 @@ function startRedisLinsten(redis, option) {
 
 function getDeviceId(host, port, device_instance, callback) {
     pool.query("select id from smartio_device where ip=" + mysql.escape(host) + " and port=" + mysql.escape(port) + " and device =" + mysql.escape(device_instance) + " limit 1", function (error, results, fields) {
+        if (!results) {
+            errlog({message:"getDeviceId results undefine"})
+            console.log("results undefine")
+            return ;
+        }
         if (results[0]) {
             //console.log(results)
             callback(error, results[0].id);
@@ -492,6 +520,13 @@ function getDeviceId(host, port, device_instance, callback) {
 function insertHistoryIndex(history, callback) {
     var sql = pool.query("select id from smartio_history_index where tablename=?", history.tablename, function (err, results) {
         errlog(err);
+        if (!results) {
+            errlog({
+                message: "saveEventMessageToDB results undefine"
+            })
+            console.log("results undefine")
+            return;
+        }
         if (results[0]) {
             pool.query("update smartio_history_index set ? where id=" + results[0].id, history, function (err, results) {
                 errlog(err);
@@ -528,7 +563,7 @@ exports.insertHistory = insertHistory;
 exports.getHistoryIndexAll = getHistoryIndexAll;
 exports.insertHistoryIndex = insertHistoryIndex;
 exports.queryEventMessageByDate = queryEventMessageByDate;
-exports.queryEventMessageByDatePage=queryEventMessageByDatePage;
+exports.queryEventMessageByDatePage = queryEventMessageByDatePage;
 exports.getMysqlConnection = getMysqlConnection;
 exports.getMysqlPoll = getMysqlPoll;
 exports.initMysqlData = initMysqlData;

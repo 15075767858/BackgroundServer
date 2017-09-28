@@ -19,6 +19,7 @@ function rebootServer() {
     //     process.kill(process.pid)
     // }, 1000)
 }
+
 app.get("/reboot", function () {
     rebootServer()
 })
