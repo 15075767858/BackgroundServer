@@ -4,7 +4,6 @@ var dbutil = require("./dbutil")
 var pool = dbutil.getMysqlPoll();
 console.log(pool)
 app.all('/', function (req, res) {
-
     pool.query("select * from smartio_data_record limit 0,25", function (err, results) {
         console.log(JSON.stringify(results))
         res.send(JSON.stringify(results));
